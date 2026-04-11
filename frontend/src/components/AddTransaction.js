@@ -208,15 +208,15 @@ const styles = {
   },
 
   activeIncome: {
-    background: "#ecfdf5",
-    border: "1px solid #10b981",
-    color: "#10b981",
+    background: "#eef9ff",
+    border: "1px solid #A9DEF9",
+    color: "#66bde8",
   },
 
   activeExpense: {
-    background: "#fef2f2",
-    border: "1px solid #ef4444",
-    color: "#ef4444",
+    background: "#ffeaf4",
+    border: "1px solid #f8accf",
+    color: "#ee8ebb",
   },
 
   actions: {
@@ -238,7 +238,7 @@ const styles = {
     padding: "8px 14px",
     borderRadius: 8,
     border: "none",
-    background: "#10b981",
+    background: "#89d0a4",
     color: "#fff",
     cursor: "pointer",
     fontWeight: 600,
