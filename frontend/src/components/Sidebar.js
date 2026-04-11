@@ -80,7 +80,7 @@ const styles = {
     width: 36,
     height: 36,
     borderRadius: 10,
-    background: "#16a34a",
+    background: "#89d0a4",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -127,6 +127,6 @@ const styles = {
   navLabelActive: {
     fontSize: 14,
     fontWeight: 600,
-    color: "#16a34a",
+    color: "#62b181",
   },
 };
