@@ -5,7 +5,11 @@ const CATEGORY_OPTIONS = {
   expense: ["Rent", "Food", "Utilities", "Entertainment", "Health"],
 };
 
-export default function AddTransactionModal({ onClose, onSave }) {
+export default function AddTransactionModal({
+  onClose,
+  onSave,
+  workspaceType = "personal",
+}) {
   const [form, setForm] = useState({
     amount: "",
     category: "",
@@ -13,6 +17,8 @@ export default function AddTransactionModal({ onClose, onSave }) {
     date: new Date().toISOString().slice(0, 10),
     type: "",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -28,21 +34,36 @@ export default function AddTransactionModal({ onClose, onSave }) {
 
   const categoryOptions = form.type ? CATEGORY_OPTIONS[form.type] : [];
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (!form.type) {
+      setErrorMessage("Select income or expense.");
+      return;
+    }
     if (!form.amount || !form.category) {
-      alert("Please fill required fields");
+      setErrorMessage("Amount and category are required.");
       return;
     }
 
-    onSave({
+    const payload = {
       ...form,
+      workspace_type: workspaceType,
       amount:
         form.type === "expense"
           ? -Math.abs(Number(form.amount))
           : Math.abs(Number(form.amount)),
-    });
+    };
 
-    onClose();
+    setErrorMessage("");
+    setIsSubmitting(true);
+
+    try {
+      await onSave(payload);
+      onClose();
+    } catch (err) {
+      setErrorMessage(err.message || "Could not save transaction.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -122,14 +143,31 @@ export default function AddTransactionModal({ onClose, onSave }) {
             style={styles.input}
           />
 
+          {errorMessage ? (
+            <p style={styles.errorText}>{errorMessage}</p>
+          ) : null}
+
           {/* Actions */}
           <div style={styles.actions}>
-            <button style={styles.cancelBtn} onClick={onClose}>
+            <button
+              style={styles.cancelBtn}
+              onClick={onClose}
+              disabled={isSubmitting}
+              type="button"
+            >
               Cancel
             </button>
 
-            <button style={styles.saveBtn} onClick={handleSubmit}>
-              Save
+            <button
+              style={{
+                ...styles.saveBtn,
+                ...(isSubmitting ? styles.saveBtnDisabled : {}),
+              }}
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              type="button"
+            >
+              {isSubmitting ? "Saving…" : "Save"}
             </button>
           </div>
         </div>
@@ -242,5 +280,16 @@ const styles = {
     color: "#fff",
     cursor: "pointer",
     fontWeight: 600,
+  },
+
+  saveBtnDisabled: {
+    opacity: 0.7,
+    cursor: "not-allowed",
+  },
+
+  errorText: {
+    margin: 0,
+    color: "#d92323",
+    fontSize: 13,
   },
 };

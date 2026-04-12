@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const userRoutes = require('./routes/userRoutes');
+const transactionRoutes = require('./routes/transactionRoutes');
 
 const app = express();
 
@@ -12,6 +13,7 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/api/users', userRoutes);
+app.use('/api/transactions', transactionRoutes);
 
 app.use((err, _req, res, _next) => {
   const statusCode = err.statusCode || 500;

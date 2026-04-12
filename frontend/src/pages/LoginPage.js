@@ -53,6 +53,10 @@ export default function LoginPage() {
         throw new Error(payload.message || "Login failed.");
       }
 
+      if (payload.user) {
+        sessionStorage.setItem("leaftrack_user", JSON.stringify(payload.user));
+      }
+
       navigate("/dashboard");
     } catch (error) {
       setErrorMessage(error.message || "Login failed.");

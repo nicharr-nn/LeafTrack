@@ -1,80 +1,38 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
 import Sidebar from "../components/Sidebar";
 import AddTransaction from "../components/AddTransaction";
+import { getApiBase, getCurrentUser } from "../config/api";
 
-import { LuSearch, LuTrash2, LuChevronDown } from "react-icons/lu";
+import { LuSearch, LuTrash2 } from "react-icons/lu";
 
-const initialTransactions = [
-  {
-    id: 1,
-    date: "01/04/2026",
-    description: "Monthly Salary",
-    category: "Salary",
-    type: "income",
-    amount: 5000,
-  },
-  {
-    id: 2,
-    date: "02/04/2026",
-    description: "April Rent",
-    category: "Rent",
-    type: "expense",
-    amount: -1200,
-  },
-  {
-    id: 3,
-    date: "03/04/2026",
-    description: "Grocery Shopping",
-    category: "Food",
-    type: "expense",
-    amount: -250,
-  },
-  {
-    id: 4,
-    date: "04/04/2026",
-    description: "Freelance Payment",
-    category: "Salary",
-    type: "income",
-    amount: 500,
-  },
-  {
-    id: 5,
-    date: "05/04/2026",
-    description: "Electric Bill",
-    category: "Utilities",
-    type: "expense",
-    amount: -120,
-  },
-  {
-    id: 6,
-    date: "06/04/2026",
-    description: "Netflix Subscription",
-    category: "Entertainment",
-    type: "expense",
-    amount: -15,
-  },
-  {
-    id: 7,
-    date: "07/04/2026",
-    description: "Gym Membership",
-    category: "Health",
-    type: "expense",
-    amount: -80,
-  },
-  {
-    id: 8,
-    date: "08/04/2026",
-    description: "Bonus",
-    category: "Salary",
-    type: "income",
-    amount: 130,
-  },
-];
+function formatDisplayDate(dateStr) {
+  const iso = String(dateStr).split("T")[0];
+  const parts = iso.split("-").map(Number);
+  if (parts.length < 3 || parts.some((n) => Number.isNaN(n))) return iso;
+  const [y, m, d] = parts;
+  const dt = new Date(y, m - 1, d);
+  return dt.toLocaleDateString("en-US");
+}
+
+function mapTransaction(row) {
+  const amt = Number(row.amount);
+  return {
+    id: row.transaction_id,
+    date: formatDisplayDate(row.date),
+    description: row.description || "",
+    category: row.category || "Other",
+    type: row.type,
+    amount: amt,
+    workspace_type: row.workspace_type || "personal",
+  };
+}
 
 const CATEGORIES = [
   "All Categories",
   "Salary",
+  "Bonus",
+  "Investment",
+  "Gift",
   "Rent",
   "Food",
   "Utilities",
@@ -86,12 +44,47 @@ const CATEGORIES = [
 const TYPES = ["All Types", "income", "expense"];
 
 export default function Transactions() {
-  const navigate = useNavigate();
-  const [transactions, setTransactions] = useState(initialTransactions);
+  const [transactions, setTransactions] = useState([]);
+  const [listError, setListError] = useState("");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All Types");
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
   const [showModal, setShowModal] = useState(false);
+
+  const loadTransactions = useCallback(async () => {
+    const user = getCurrentUser();
+    if (!user?.user_id) {
+      setListError("Log in to load and sync transactions.");
+      setTransactions([]);
+      return;
+    }
+
+    setListError("");
+    try {
+      const res = await fetch(
+        `${getApiBase()}/api/transactions?user_id=${user.user_id}`,
+      );
+      let payload = [];
+      try {
+        payload = await res.json();
+      } catch {
+        payload = [];
+      }
+
+      if (!res.ok) {
+        throw new Error(payload.message || "Failed to load transactions.");
+      }
+
+      const rows = Array.isArray(payload) ? payload : [];
+      setTransactions(rows.map(mapTransaction));
+    } catch (e) {
+      setListError(e.message || "Failed to load transactions.");
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTransactions();
+  }, [loadTransactions]);
 
   const filtered = transactions.filter((t) => {
     const matchSearch = t.description
@@ -114,8 +107,34 @@ export default function Transactions() {
       .reduce((sum, t) => sum + t.amount, 0),
   );
 
-  const handleDelete = (id) => {
-    setTransactions((prev) => prev.filter((t) => t.id !== id));
+  const handleDelete = async (id) => {
+    const user = getCurrentUser();
+    if (!user?.user_id) {
+      alert("Log in to delete transactions.");
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `${getApiBase()}/api/transactions/${id}?user_id=${user.user_id}`,
+        { method: "DELETE" },
+      );
+
+      if (!res.ok) {
+        let msg = "Delete failed.";
+        try {
+          const body = await res.json();
+          msg = body.message || msg;
+        } catch {
+          /* ignore */
+        }
+        throw new Error(msg);
+      }
+
+      setTransactions((prev) => prev.filter((t) => t.id !== id));
+    } catch (e) {
+      alert(e.message || "Delete failed.");
+    }
   };
 
   return (
@@ -130,6 +149,8 @@ export default function Transactions() {
               Add Transaction
             </button>
           </div>
+
+          {listError ? <p style={styles.bannerError}>{listError}</p> : null}
 
           <div style={styles.statsRow}>
             <div style={styles.statCard}>
@@ -151,7 +172,7 @@ export default function Transactions() {
                   color: "#66bde8",
                 }}
               >
-                ${totalIncome.toLocaleString()}
+                {totalIncome.toLocaleString()}
               </span>
             </div>
 
@@ -169,7 +190,7 @@ export default function Transactions() {
                   color: "#ee8ebb",
                 }}
               >
-                ${totalExpenses.toLocaleString()}
+                {totalExpenses.toLocaleString()}
               </span>
             </div>
           </div>
@@ -222,6 +243,7 @@ export default function Transactions() {
                     "Description",
                     "Category",
                     "Type",
+                    "Workspace",
                     "Amount",
                     "Actions",
                   ].map((h) => (
@@ -235,7 +257,7 @@ export default function Transactions() {
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={styles.emptyRow}>
+                    <td colSpan={7} style={styles.emptyRow}>
                       No transactions found.
                     </td>
                   </tr>
@@ -268,11 +290,24 @@ export default function Transactions() {
                       <td style={styles.td}>
                         <span
                           style={{
+                            ...styles.workspaceBadge,
+                            ...(t.workspace_type === "group"
+                              ? styles.workspaceGroup
+                              : styles.workspacePersonal),
+                          }}
+                        >
+                          {t.workspace_type === "group" ? "Group" : "Personal"}
+                        </span>
+                      </td>
+
+                      <td style={styles.td}>
+                        <span
+                          style={{
                             fontWeight: 600,
                             color: t.type === "income" ? "#66bde8" : "#ee8ebb",
                           }}
                         >
-                          {t.type === "income" ? "+" : ""}$
+                          {t.type === "income" ? "+" : ""}
                           {Math.abs(t.amount).toLocaleString()}
                         </span>
                       </td>
@@ -295,13 +330,41 @@ export default function Transactions() {
         </div>
         {showModal && (
           <AddTransaction
+            workspaceType="personal"
             onClose={() => setShowModal(false)}
-            onSave={(newTx) => {
-              setTransactions((prev) => [
-                { ...newTx, id: Date.now() },
-                ...prev,
-              ]);
-              setShowModal(false);
+            onSave={async (newTx) => {
+              const user = getCurrentUser();
+              if (!user?.user_id) {
+                throw new Error("Log in to add transactions.");
+              }
+
+              const { workspace_type: _wt, ...rest } = newTx;
+              const response = await fetch(`${getApiBase()}/api/transactions`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  user_id: user.user_id,
+                  category: rest.category,
+                  type: rest.type,
+                  amount: rest.amount,
+                  description: rest.description,
+                  date: rest.date,
+                  workspace_type: "personal",
+                }),
+              });
+
+              let payload = {};
+              try {
+                payload = await response.json();
+              } catch {
+                payload = {};
+              }
+
+              if (!response.ok) {
+                throw new Error(payload.message || "Could not save transaction.");
+              }
+
+              setTransactions((prev) => [mapTransaction(payload), ...prev]);
             }}
           />
         )}
@@ -441,6 +504,33 @@ const styles = {
     borderRadius: 20,
     padding: "3px 10px",
     fontSize: 12,
+  },
+
+  workspaceBadge: {
+    borderRadius: 20,
+    padding: "3px 10px",
+    fontSize: 12,
+    fontWeight: 500,
+  },
+
+  workspacePersonal: {
+    background: "#e4feee",
+    color: "#62b181",
+  },
+
+  workspaceGroup: {
+    background: "#fef3c7",
+    color: "#b45309",
+  },
+
+  bannerError: {
+    color: "#b45309",
+    background: "#fffbeb",
+    border: "1px solid #fde68a",
+    padding: "10px 14px",
+    borderRadius: 8,
+    marginBottom: 16,
+    fontSize: 14,
   },
 
   deleteBtn: {
