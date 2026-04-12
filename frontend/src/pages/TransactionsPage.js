@@ -11,7 +11,7 @@ function formatDisplayDate(dateStr) {
   if (parts.length < 3 || parts.some((n) => Number.isNaN(n))) return iso;
   const [y, m, d] = parts;
   const dt = new Date(y, m - 1, d);
-  return dt.toLocaleDateString("en-US");
+  return dt.toLocaleDateString("en-GB");
 }
 
 function mapTransaction(row) {
@@ -307,7 +307,7 @@ export default function Transactions() {
                             color: t.type === "income" ? "#66bde8" : "#ee8ebb",
                           }}
                         >
-                          {t.type === "income" ? "+" : ""}
+                          {t.type === "income" ? "+" : "-"}
                           {Math.abs(t.amount).toLocaleString()}
                         </span>
                       </td>
