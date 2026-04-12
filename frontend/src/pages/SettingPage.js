@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
+import { getApiBase, getCurrentUser } from "../config/api";
 
 export default function SettingsPage() {
   const [form, setForm] = useState({
@@ -7,14 +8,95 @@ export default function SettingsPage() {
     username: "",
     password: "",
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const user = getCurrentUser();
+      if (!user?.user_id) {
+        setError("Please log in to view settings.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const res = await fetch(`${getApiBase()}/api/users/${user.user_id}`);
+        if (!res.ok) {
+          throw new Error("Failed to load user data.");
+        }
+        const userData = await res.json();
+        setForm({
+          name: userData.name || "",
+          username: userData.username || "",
+          password: "",
+        });
+      } catch (e) {
+        setError(e.message || "Failed to load user data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUser();
+  }, []);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSave = () => {
-    console.log("Saved:", form);
-    alert("Settings saved!");
+  const handleSave = async () => {
+    const user = getCurrentUser();
+    if (!user?.user_id) {
+      alert("Please log in to save settings.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+
+    try {
+      const updateData = {};
+      if (form.name.trim()) updateData.name = form.name.trim();
+      if (form.username.trim()) updateData.username = form.username.trim();
+      if (form.password.trim()) updateData.password = form.password.trim();
+
+      if (Object.keys(updateData).length === 0) {
+        alert("No changes to save.");
+        setSaving(false);
+        return;
+      }
+
+      const res = await fetch(`${getApiBase()}/api/users/${user.user_id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updateData),
+      });
+
+      if (!res.ok) {
+        let msg = "Failed to save settings.";
+        try {
+          const body = await res.json();
+          msg = body.message || msg;
+        } catch {
+          /* ignore */
+        }
+        throw new Error(msg);
+      }
+
+      const { user: updatedUser } = await res.json();
+      
+      sessionStorage.setItem("leaftrack_user", JSON.stringify(updatedUser));
+      
+      alert("Settings saved successfully!");
+      
+      setForm({ ...form, password: "" });
+    } catch (e) {
+      setError(e.message || "Failed to save settings.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -27,49 +109,63 @@ export default function SettingsPage() {
             <h1 style={styles.pageTitle}>Settings</h1>
           </div>
 
-          <div style={styles.card}>
-            <div style={styles.grid}>
-              <div style={styles.inputGroupFull}>
-                <label style={styles.label}>Name</label>
-                <input
-                  name="name"
-                  value={form.name}
-                  onChange={handleChange}
-                  style={styles.input}
-                  placeholder="Enter name"
-                />
+          {loading ? (
+            <div style={styles.card}>
+              <p>Loading settings...</p>
+            </div>
+          ) : error ? (
+            <div style={styles.card}>
+              <p style={styles.error}>{error}</p>
+            </div>
+          ) : (
+            <div style={styles.card}>
+              <div style={styles.grid}>
+                <div style={styles.inputGroupFull}>
+                  <label style={styles.label}>Name</label>
+                  <input
+                    name="name"
+                    value={form.name}
+                    onChange={handleChange}
+                    style={styles.input}
+                    placeholder="Enter name"
+                  />
+                </div>
+
+                <div style={styles.inputGroupFull}>
+                  <label style={styles.label}>Username</label>
+                  <input
+                    name="username"
+                    value={form.username}
+                    onChange={handleChange}
+                    style={styles.input}
+                    placeholder="Enter username"
+                  />
+                </div>
+
+                <div style={styles.inputGroupFull}>
+                  <label style={styles.label}>Password</label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={form.password}
+                    onChange={handleChange}
+                    style={styles.input}
+                    placeholder="Enter new password (leave empty to keep current)"
+                  />
+                </div>
               </div>
 
-              <div style={styles.inputGroupFull}>
-                <label style={styles.label}>Username</label>
-                <input
-                  name="username"
-                  value={form.username}
-                  onChange={handleChange}
-                  style={styles.input}
-                  placeholder="Enter username"
-                />
-              </div>
-
-              <div style={styles.inputGroupFull}>
-                <label style={styles.label}>Password</label>
-                <input
-                  type="password"
-                  name="password"
-                  value={form.password}
-                  onChange={handleChange}
-                  style={styles.input}
-                  placeholder="Enter new password"
-                />
+              <div style={styles.actions}>
+                <button 
+                  style={{...styles.saveBtn, opacity: saving ? 0.6 : 1}} 
+                  onClick={handleSave}
+                  disabled={saving}
+                >
+                  {saving ? "Saving..." : "Save Changes"}
+                </button>
               </div>
             </div>
-
-            <div style={styles.actions}>
-              <button style={styles.saveBtn} onClick={handleSave}>
-                Save Changes
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       </main>
     </div>
@@ -104,6 +200,11 @@ const styles = {
     padding: 24,
     borderRadius: 16,
     border: "1px solid #e5e7eb",
+  },
+
+  error: {
+    color: "#dc2626",
+    fontSize: 14,
   },
 
   grid: {

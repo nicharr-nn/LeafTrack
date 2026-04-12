@@ -68,8 +68,64 @@ async function loginUser(payload) {
   return safeUser;
 }
 
+async function getUserById(userId) {
+  const user = await userRepository.findUserById(userId);
+  if (!user) {
+    const error = new Error('User not found');
+    error.statusCode = 404;
+    throw error;
+  }
+  return user;
+}
+
+async function updateUser(userId, payload) {
+  const { name, username, password } = payload;
+
+  const updateData = {};
+
+  if (name !== undefined) {
+    updateData.name = name.trim();
+    if (!updateData.name) {
+      const error = new Error('Name cannot be empty');
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
+  if (username !== undefined) {
+    updateData.username = username.trim();
+    if (!updateData.username) {
+      const error = new Error('Username cannot be empty');
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
+  if (password !== undefined) {
+    updateData.password = password.trim();
+    if (!updateData.password) {
+      const error = new Error('Password cannot be empty');
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
+  try {
+    return await userRepository.updateUser(userId, updateData);
+  } catch (error) {
+    if (error.code === '23505') {
+      const conflictError = new Error('Username already exists');
+      conflictError.statusCode = 409;
+      throw conflictError;
+    }
+    throw error;
+  }
+}
+
 module.exports = {
   listUsers,
   registerUser,
-  loginUser
+  loginUser,
+  getUserById,
+  updateUser
 };
