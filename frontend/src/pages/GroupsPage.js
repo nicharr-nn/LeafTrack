@@ -364,7 +364,6 @@ const styles = {
     position: "relative",
     width: "100%",
     maxWidth: 1200,
-    marginBottom: 20,
     display: "flex",
     gap: 10,
     marginBottom: 24,
