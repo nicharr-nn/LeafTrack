@@ -1,21 +1,63 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export default function RegisterPage({ onSwitch }) {
+export default function RegisterPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     name: "",
     username: "",
     password: "",
   });
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleRegister = () => {
-    console.log("Register:", form);
-    alert("Registered!");
+  const handleRegister = async () => {
+    if (!form.name.trim() || !form.username.trim() || !form.password.trim()) {
+      setErrorMessage("Name, username, and password are required.");
+      return;
+    }
+
+    setErrorMessage("");
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(
+        `${process.env.REACT_APP_API_URL || "http://localhost:4000"}/api/users/register`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: form.name.trim(),
+            username: form.username.trim(),
+            password: form.password.trim(),
+          }),
+        }
+      );
+
+      let payload = {};
+      try {
+        payload = await response.json();
+      } catch (_error) {
+        payload = {};
+      }
+
+      if (!response.ok) {
+        throw new Error(payload.message || "Registration failed.");
+      }
+
+      alert("Registered successfully!");
+      navigate("/login");
+    } catch (error) {
+      setErrorMessage(error.message || "Registration failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -49,8 +91,17 @@ export default function RegisterPage({ onSwitch }) {
           style={styles.input}
         />
 
-        <button style={styles.button} onClick={handleRegister}>
-          Create Account
+        {errorMessage ? <p style={styles.error}>{errorMessage}</p> : null}
+
+        <button
+          style={{
+            ...styles.button,
+            ...(isSubmitting ? styles.buttonDisabled : {}),
+          }}
+          onClick={handleRegister}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Creating..." : "Create Account"}
         </button>
 
         <p style={styles.switchText}>
@@ -121,6 +172,17 @@ const styles = {
     color: "#fff",
     fontWeight: 600,
     cursor: "pointer",
+  },
+
+  buttonDisabled: {
+    opacity: 0.7,
+    cursor: "not-allowed",
+  },
+
+  error: {
+    margin: 0,
+    color: "#d92323",
+    fontSize: 13,
   },
 
   switchText: {

@@ -11,16 +11,54 @@ export default function LoginPage() {
   });
 
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleLogin = () => {
-    console.log("Login:", form);
-    alert("Logged in!");
+  const handleLogin = async () => {
+    if (!form.username.trim() || !form.password.trim()) {
+      setErrorMessage("Username and password are required.");
+      return;
+    }
 
-    navigate("/dashboard");
+    setErrorMessage("");
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(
+        `${process.env.REACT_APP_API_URL || "http://localhost:4000"}/api/users/login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            username: form.username.trim(),
+            password: form.password.trim(),
+          }),
+        }
+      );
+
+      let payload = {};
+      try {
+        payload = await response.json();
+      } catch (_error) {
+        payload = {};
+      }
+
+      if (!response.ok) {
+        throw new Error(payload.message || "Login failed.");
+      }
+
+      navigate("/dashboard");
+    } catch (error) {
+      setErrorMessage(error.message || "Login failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -55,8 +93,17 @@ export default function LoginPage() {
           </button>
         </div>
 
-        <button style={styles.button} onClick={handleLogin}>
-          Login
+        {errorMessage ? <p style={styles.error}>{errorMessage}</p> : null}
+
+        <button
+          style={{
+            ...styles.button,
+            ...(isSubmitting ? styles.buttonDisabled : {}),
+          }}
+          onClick={handleLogin}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Signing in..." : "Login"}
         </button>
 
         <p style={styles.switchText}>
@@ -145,6 +192,17 @@ const styles = {
     color: "#fff",
     fontWeight: 600,
     cursor: "pointer",
+  },
+
+  buttonDisabled: {
+    opacity: 0.7,
+    cursor: "not-allowed",
+  },
+
+  error: {
+    margin: 0,
+    color: "#d92323",
+    fontSize: 13,
   },
 
   switchText: {
