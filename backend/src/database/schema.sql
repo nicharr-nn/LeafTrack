@@ -21,6 +21,15 @@ CREATE TABLE IF NOT EXISTS workspaces (
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS default_category_budgets (
+  default_budget_id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  category_id INTEGER NOT NULL REFERENCES categories(category_id) ON DELETE CASCADE,
+  default_amount DECIMAL(10,2),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (user_id, category_id)
+);
+
 CREATE TABLE IF NOT EXISTS transactions (
   transaction_id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,

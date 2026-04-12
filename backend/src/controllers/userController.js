@@ -55,10 +55,38 @@ async function updateUser(req, res, next) {
   }
 }
 
+async function getUserDefaultCategoryBudgets(req, res, next) {
+  try {
+    const { id } = req.params;
+    const budgets = await userService.getUserDefaultCategoryBudgets(id);
+    res.status(200).json({ budgets });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function saveUserDefaultCategoryBudgets(req, res, next) {
+  try {
+    const { id } = req.params;
+    const budgets = await userService.saveUserDefaultCategoryBudgets(
+      id,
+      req.body
+    );
+    res.status(200).json({
+      message: 'Default category budgets saved successfully',
+      budgets
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   getUsers,
   registerUser,
   loginUser,
   getUser,
-  updateUser
+  updateUser,
+  getUserDefaultCategoryBudgets,
+  saveUserDefaultCategoryBudgets
 };

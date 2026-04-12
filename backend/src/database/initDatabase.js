@@ -25,6 +25,20 @@ async function initializeDatabase() {
   await pool.query(`
     ALTER TABLE transactions ALTER COLUMN workspace_type SET NOT NULL;
   `);
+  await pool.query(`
+    ALTER TABLE default_category_budgets
+    ALTER COLUMN default_amount DROP NOT NULL;
+  `);
+  await pool.query(`
+    DO $$ BEGIN
+      ALTER TABLE default_category_budgets
+        ADD CONSTRAINT default_category_budgets_user_category_uniq
+        UNIQUE (user_id, category_id);
+    EXCEPTION
+      WHEN duplicate_object THEN NULL;
+      WHEN undefined_table THEN NULL;
+    END $$;
+  `);
 
   console.log('Database initialized successfully. users table is ready.');
 }
