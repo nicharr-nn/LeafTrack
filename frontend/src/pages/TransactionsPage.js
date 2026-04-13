@@ -3,15 +3,11 @@ import Sidebar from "../components/Sidebar";
 import AddTransaction from "../components/AddTransaction";
 import { getApiBase, getCurrentUser } from "../config/api";
 
-import { LuSearch, LuTrash2 } from "react-icons/lu";
+import { LuSearch, LuTrash2, LuArrowUp, LuArrowDown } from "react-icons/lu";
 
 function formatDisplayDate(dateStr) {
-  const iso = String(dateStr).split("T")[0];
-  const parts = iso.split("-").map(Number);
-  if (parts.length < 3 || parts.some((n) => Number.isNaN(n))) return iso;
-  const [y, m, d] = parts;
-  const dt = new Date(y, m - 1, d);
-  return dt.toLocaleDateString("en-GB");
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("en-GB");
 }
 
 function mapTransaction(row) {
@@ -50,6 +46,7 @@ export default function Transactions() {
   const [typeFilter, setTypeFilter] = useState("All Types");
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
   const [showModal, setShowModal] = useState(false);
+  const [sortOrder, setSortOrder] = useState("desc"); // desc for latest first
 
   const loadTransactions = useCallback(async () => {
     const user = getCurrentUser();
@@ -86,16 +83,22 @@ export default function Transactions() {
     loadTransactions();
   }, [loadTransactions]);
 
-  const filtered = transactions.filter((t) => {
-    const matchSearch = t.description
-      .toLowerCase()
-      .includes(search.toLowerCase());
-    const matchType = typeFilter === "All Types" || t.type === typeFilter;
-    const matchCat =
-      categoryFilter === "All Categories" || t.category === categoryFilter;
+  const filtered = transactions
+    .filter((t) => {
+      const matchSearch = t.description
+        .toLowerCase()
+        .includes(search.toLowerCase());
+      const matchType = typeFilter === "All Types" || t.type === typeFilter;
+      const matchCat =
+        categoryFilter === "All Categories" || t.category === categoryFilter;
 
-    return matchSearch && matchType && matchCat;
-  });
+      return matchSearch && matchType && matchCat;
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
+    });
 
   const totalIncome = transactions
     .filter((t) => t.type === "income")
@@ -211,6 +214,20 @@ export default function Transactions() {
             </div>
 
             <div style={styles.filterRight}>
+              <button
+                style={styles.sortBtn}
+                onClick={() =>
+                  setSortOrder(sortOrder === "desc" ? "asc" : "desc")
+                }
+                title={`Sort by date (${sortOrder === "desc" ? "newest first" : "oldest first"})`}
+              >
+                {sortOrder === "desc" ? (
+                  <LuArrowDown size={16} />
+                ) : (
+                  <LuArrowUp size={16} />
+                )}
+              </button>
+
               <select
                 style={styles.select}
                 value={typeFilter}
@@ -361,7 +378,9 @@ export default function Transactions() {
               }
 
               if (!response.ok) {
-                throw new Error(payload.message || "Could not save transaction.");
+                throw new Error(
+                  payload.message || "Could not save transaction.",
+                );
               }
 
               setTransactions((prev) => [mapTransaction(payload), ...prev]);
@@ -381,7 +400,7 @@ const styles = {
     background: "#f8f9fa",
     color: "#111",
   },
-  main: { flex: 1, display: "flex", flexDirection: "column" },
+  main: { flex: 1, display: "flex", flexDirection: "column", marginLeft: 220 },
   content: { padding: "32px", flex: 1 },
 
   pageHeader: {
@@ -408,7 +427,7 @@ const styles = {
     flexDirection: "column",
     gap: 8,
   },
-  statLabel: { fontSize: 13, color: "#6b7280" },
+  statLabel: { fontSize: 16, color: "#6b7280" },
   statValue: { fontSize: 26, fontWeight: 700 },
   statValueDefault: { fontSize: 26, fontWeight: 700 },
 
@@ -441,6 +460,20 @@ const styles = {
 
   filterRight: { display: "flex", alignItems: "center", gap: 10 },
   filterIcon: { color: "#6b7280" },
+
+  sortBtn: {
+    height: 36,
+    width: 36,
+    padding: 0,
+    border: "1px solid #e5e7eb",
+    borderRadius: 8,
+    cursor: "pointer",
+    background: "#f3f4f6",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#6b7280",
+  },
 
   select: {
     height: 36,
