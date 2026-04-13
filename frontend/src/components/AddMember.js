@@ -2,21 +2,31 @@ import { useState } from "react";
 
 export default function AddMemberModal({ onClose, onSave }) {
   const [form, setForm] = useState({
-    userId: "",
+    username: "",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = () => {
-    if (!form.name || !form.userId) {
-      alert("Please fill required fields");
+  const handleSubmit = async () => {
+    if (!form.username.trim()) {
+      setErrorMessage("Username is required.");
       return;
     }
 
-    onSave(form);
-    onClose();
+    setErrorMessage("");
+    setIsSubmitting(true);
+    try {
+      await onSave({ username: form.username.trim() });
+      onClose();
+    } catch (error) {
+      setErrorMessage(error.message || "Could not send invitation.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -27,20 +37,29 @@ export default function AddMemberModal({ onClose, onSave }) {
 
           <input
             type="text"
-            name="userId"
-            placeholder="User ID"
-            value={form.userId}
+            name="username"
+            placeholder="Username"
+            value={form.username}
             onChange={handleChange}
             style={styles.input}
           />
+          {errorMessage ? <p style={styles.errorText}>{errorMessage}</p> : null}
 
           <div style={styles.actions}>
-            <button style={styles.cancelBtn} onClick={onClose}>
+            <button
+              style={styles.cancelBtn}
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
               Cancel
             </button>
 
-            <button style={styles.saveBtn} onClick={handleSubmit}>
-              Add
+            <button
+              style={styles.saveBtn}
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Sending..." : "Add"}
             </button>
           </div>
         </div>
@@ -114,5 +133,10 @@ const styles = {
     color: "#fff",
     cursor: "pointer",
     fontWeight: 600,
+  },
+  errorText: {
+    margin: 0,
+    color: "#d92323",
+    fontSize: 13,
   },
 };
