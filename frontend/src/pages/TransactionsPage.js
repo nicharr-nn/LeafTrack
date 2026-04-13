@@ -419,9 +419,9 @@ const styles = {
     marginBottom: 24,
   },
   statCard: {
-    background: "#fff",
+    background: "#e4feee",
     borderRadius: 12,
-    border: "1px solid #e5e7eb",
+    border: "1px solid #9ce3b7",
     padding: "20px 24px",
     display: "flex",
     flexDirection: "column",
@@ -429,7 +429,7 @@ const styles = {
   },
   statLabel: { fontSize: 16, color: "#6b7280" },
   statValue: { fontSize: 26, fontWeight: 700 },
-  statValueDefault: { fontSize: 26, fontWeight: 700 },
+  statValueDefault: { fontSize: 26, fontWeight: 700, color: "#62b181" },
 
   filterBar: {
     background: "#fff",
