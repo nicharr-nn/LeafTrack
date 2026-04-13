@@ -356,7 +356,8 @@ const styles = {
     fontFamily: "'Segoe UI', sans-serif",
   },
 
-  main: { flex: 1 },
+  main: { flex: 1, marginLeft: 220 },
+  
   content: {
     padding: 32,
     display: "flex",
