@@ -4,6 +4,7 @@ import {
   FiUsers,
   FiSettings,
   FiFeather,
+  FiLogOut,
 } from "react-icons/fi";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -17,6 +18,11 @@ const NAV_ITEMS = [
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("leaftrack_user");
+    navigate("/login");
+  };
 
   return (
     <aside style={styles.sidebar}>
@@ -52,6 +58,13 @@ export default function Sidebar() {
           );
         })}
       </nav>
+
+      <div style={styles.logout} onClick={handleLogout}>
+        <span style={styles.navIcon}>
+          <FiLogOut size={18} />
+        </span>
+        <span style={styles.logoutLabel}>Logout</span>
+      </div>
     </aside>
   );
 }
@@ -59,13 +72,16 @@ export default function Sidebar() {
 const styles = {
   sidebar: {
     width: 220,
-    minHeight: "100vh",
+    height: "100vh",
     background: "#fff",
     borderRight: "1px solid #e5e7eb",
     display: "flex",
     flexDirection: "column",
     paddingBottom: 24,
-    flexShrink: 0,
+    position: "fixed",
+    top: 0,
+    left: 0,
+    overflowY: "auto",
   },
 
   logo: {
@@ -128,5 +144,24 @@ const styles = {
     fontSize: 14,
     fontWeight: 600,
     color: "#62b181",
+  },
+
+  logout: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "10px 12px",
+    borderRadius: 8,
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+    marginTop: "auto",
+    marginLeft: 12,
+    marginRight: 12,
+    color: "#000000",
+  },
+
+  logoutLabel: {
+    fontSize: 14,
+    color: "#6b7280",
   },
 };
