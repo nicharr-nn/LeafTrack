@@ -7,6 +7,7 @@ import SettingsPage from "./pages/SettingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import AdminPage from "./pages/AdminPage";
+import GroupTransactionsPage from "./pages/GroupTransactionsPage";
 import { getCurrentUser } from "./config/api";
 
 function ProtectedRoute({ children }) {
@@ -41,6 +42,7 @@ export default function App() {
 
         <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
         <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
+        <Route path="/groups/:groupId/transactions" element={<ProtectedRoute><GroupTransactionsPage /></ProtectedRoute>} />
         <Route path="/groups" element={<ProtectedRoute><GroupsPage /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
