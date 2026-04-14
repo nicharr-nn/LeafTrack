@@ -1,23 +1,16 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
-import { LuUsers, LuUserPlus, LuSearch } from "react-icons/lu";
+import { LuUsers, LuUserPlus, LuSearch, LuTrash2 } from "react-icons/lu";
 import AddMemberModal from "../components/AddMember";
 import AddTransactionModal from "../components/AddTransaction";
-
-const initialGroups = [
-  {
-    id: 1,
-    name: "Vacation Fund",
-    description: "Saving for summer vacation",
-    members: 2,
-    income: 3000,
-    expenses: 1200,
-  },
-];
+import CreateGroup from "../components/CreateGroup";
+import { getApiBase, getCurrentUser } from "../config/api";
 
 export default function GroupsPage() {
-  const [groups, setGroups] = useState(initialGroups);
-  const [newGroup, setNewGroup] = useState("");
+  const currentUser = getCurrentUser();
+  const [groups, setGroups] = useState([]);
+  const [listError, setListError] = useState("");
+  const [hasLoadedGroups, setHasLoadedGroups] = useState(false);
 
   const [showAddMember, setShowAddMember] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState(null);
@@ -25,53 +18,222 @@ export default function GroupsPage() {
   const [showAddTransaction, setShowAddTransaction] = useState(false);
   const [search, setSearch] = useState("");
 
-  const handleCreateGroup = () => {
-    if (!newGroup.trim()) return;
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
 
-    const newItem = {
-      id: Date.now(),
-      name: newGroup,
-      description: "New group",
-      members: 1,
-      income: 0,
-      expenses: 0,
-    };
+  const loadGroups = useCallback(async () => {
+    const user = getCurrentUser();
+    if (!user?.user_id) {
+      setListError("Log in to view groups.");
+      setGroups([]);
+      return;
+    }
 
-    setGroups((prev) => [newItem, ...prev]);
-    setNewGroup("");
-  };
+    setListError("");
+    setHasLoadedGroups(false);
 
-  const handleAddMember = (member) => {
-    setGroups((prev) =>
-      prev.map((g) =>
-        g.id === selectedGroupId ? { ...g, members: g.members + 1 } : g,
-      ),
+    try {
+      const response = await fetch(
+        `${getApiBase()}/api/workspaces/groups?user_id=${user.user_id}`,
+      );
+      let body = [];
+      try {
+        body = await response.json();
+      } catch {
+        body = [];
+      }
+
+      if (!response.ok) {
+        throw new Error(body.message || "Could not load groups.");
+      }
+
+      const rows = Array.isArray(body) ? body : [];
+      setGroups(
+        rows.map((row) => ({
+          id: row.workspace_id,
+          name: row.name,
+          description: row.description || "",
+          ownerId: row.owner_id,
+          members: Number(row.members) || 0,
+          income: Number(row.income) || 0,
+          expenses: Number(row.expenses) || 0,
+          status: row.status === "pending" ? "invited" : "active",
+        })),
+      );
+      setListError("");
+      setHasLoadedGroups(true);
+    } catch (error) {
+      setGroups([]);
+      setListError(error.message || "Could not load groups.");
+      setHasLoadedGroups(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadGroups();
+  }, [loadGroups]);
+
+  const handleAddMember = async (member) => {
+    const user = getCurrentUser();
+    if (!user?.user_id) {
+      throw new Error("Log in to invite members.");
+    }
+    if (!selectedGroupId) {
+      throw new Error("Please select a group first.");
+    }
+
+    const response = await fetch(
+      `${getApiBase()}/api/workspaces/groups/${selectedGroupId}/invitations`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user.user_id,
+          username: member.username,
+        }),
+      },
     );
+
+    let body = {};
+    try {
+      body = await response.json();
+    } catch {
+      body = {};
+    }
+
+    if (!response.ok) {
+      throw new Error(body.message || "Could not send invitation.");
+    }
+
+    await loadGroups();
   };
 
-  const handleAddTransaction = (transaction) => {
+  const handleAcceptInvite = async (groupId) => {
+    const user = getCurrentUser();
+    if (!user?.user_id) {
+      alert("Log in to accept invitations.");
+      return;
+    }
+
+    const response = await fetch(
+      `${getApiBase()}/api/workspaces/groups/${groupId}/invitations/respond`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: user.user_id, action: "accept" }),
+      },
+    );
+
+    if (!response.ok) {
+      let body = {};
+      try {
+        body = await response.json();
+      } catch {
+        body = {};
+      }
+      alert(body.message || "Could not accept invitation.");
+      return;
+    }
+
+    await loadGroups();
+  };
+
+  const handleDeclineInvite = async (groupId) => {
+    const user = getCurrentUser();
+    if (!user?.user_id) {
+      alert("Log in to decline invitations.");
+      return;
+    }
+
+    const response = await fetch(
+      `${getApiBase()}/api/workspaces/groups/${groupId}/invitations/respond`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: user.user_id, action: "decline" }),
+      },
+    );
+
+    if (!response.ok) {
+      let body = {};
+      try {
+        body = await response.json();
+      } catch {
+        body = {};
+      }
+      alert(body.message || "Could not decline invitation.");
+      return;
+    }
+
+    await loadGroups();
+  };
+
+  const handleAddTransaction = (transaction, fallbackAmount, workspaceId) => {
+    const amount = Number(transaction?.amount ?? fallbackAmount);
+    if (!Number.isFinite(amount)) return;
+
+    const targetWorkspaceId =
+      transaction?.workspace_id != null
+        ? Number(transaction.workspace_id)
+        : workspaceId;
+    if (!Number.isFinite(targetWorkspaceId)) return;
+
     setGroups((prev) =>
       prev.map((g) =>
-        g.id === selectedGroupId
+        g.id === targetWorkspaceId
           ? {
               ...g,
-              income:
-                transaction.amount > 0
-                  ? g.income + transaction.amount
-                  : g.income,
-              expenses:
-                transaction.amount < 0
-                  ? g.expenses + Math.abs(transaction.amount)
-                  : g.expenses,
+              income: amount > 0 ? g.income + amount : g.income,
+              expenses: amount < 0 ? g.expenses + Math.abs(amount) : g.expenses,
             }
           : g,
       ),
     );
   };
 
+  const handleDeleteGroup = async (groupId) => {
+    const user = getCurrentUser();
+    if (!user?.user_id) {
+      alert("Log in to delete groups.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Delete this group? This action cannot be undone.",
+    );
+    if (!confirmed) return;
+
+    const response = await fetch(
+      `${getApiBase()}/api/workspaces/groups/${groupId}`,
+      {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: user.user_id }),
+      },
+    );
+
+    if (!response.ok) {
+      let body = {};
+      try {
+        body = await response.json();
+      } catch {
+        body = {};
+      }
+      alert(body.message || "Could not delete group.");
+      return;
+    }
+
+    await loadGroups();
+  };
+
   const filteredGroups = groups.filter((g) =>
     g.name.toLowerCase().includes(search.toLowerCase()),
   );
+
+  const showGroupError =
+    listError &&
+    listError !== "Could not load groups." &&
+    listError !== "Group not found";
+  const showEmptyState = !filteredGroups.length && hasLoadedGroups;
 
   return (
     <div style={styles.root}>
@@ -82,7 +244,10 @@ export default function GroupsPage() {
           <div style={styles.pageHeaderRow}>
             <h1 style={styles.pageTitle}>Groups</h1>
 
-            <button style={styles.headerBtn} onClick={handleCreateGroup}>
+            <button
+              style={styles.headerBtn}
+              onClick={() => setShowCreateGroup(true)}
+            >
               Create Group
             </button>
           </div>
@@ -97,6 +262,19 @@ export default function GroupsPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          {showGroupError ? (
+            <p style={styles.bannerError}>{listError}</p>
+          ) : null}
+
+          {showEmptyState ? (
+            <div style={styles.emptyStateContainer}>
+              <div style={styles.emptyState}>
+                <div style={styles.emptyStateText}>
+                  Click Create Group to get started.
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {/* Group Cards */}
           <div style={styles.grid}>
@@ -126,49 +304,86 @@ export default function GroupsPage() {
                       <span>{g.members} members</span>
                     </div>
 
-                    <div
-                      style={styles.addMember}
-                      onClick={() => {
-                        setSelectedGroupId(g.id);
-                        setShowAddMember(true);
-                      }}
-                    >
-                      <LuUserPlus size={16} />
-                      <span>Add Member</span>
-                    </div>
+                    {g.status !== "invited" && (
+                      <div
+                        style={styles.addMember}
+                        onClick={() => {
+                          setSelectedGroupId(g.id);
+                          setShowAddMember(true);
+                        }}
+                      >
+                        <LuUserPlus size={16} />
+                        <span>Add Member</span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Balance */}
-                  <div style={styles.balanceRow}>
-                    <span>Group Balance</span>
-                    <span style={styles.balance}>
-                      {balance.toLocaleString()}
-                    </span>
-                  </div>
+                  {g.status !== "invited" && (
+                    <>
+                      {/* Balance */}
+                      <div style={styles.balanceRow}>
+                        <span>Group Balance</span>
+                        <span style={styles.balance}>
+                          {balance.toLocaleString()}
+                        </span>
+                      </div>
 
-                  {/* Income / Expense */}
-                  <div style={styles.stats}>
-                    <div style={styles.incomeCard}>
-                      <span>Income</span>
-                      <strong>{g.income.toLocaleString()}</strong>
-                    </div>
+                      {/* Income / Expense */}
+                      <div style={styles.stats}>
+                        <div style={styles.incomeCard}>
+                          <span>Income</span>
+                          <strong>{g.income.toLocaleString()}</strong>
+                        </div>
 
-                    <div style={styles.expenseCard}>
-                      <span>Expenses</span>
-                      <strong>{g.expenses.toLocaleString()}</strong>
-                    </div>
-                  </div>
+                        <div style={styles.expenseCard}>
+                          <span>Expenses</span>
+                          <strong>{g.expenses.toLocaleString()}</strong>
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   {/* Button */}
-                  <button
-                    style={styles.addBtn}
-                    onClick={() => {
-                      setSelectedGroupId(g.id);
-                      setShowAddTransaction(true);
-                    }}
-                  >
-                    Add Transaction
-                  </button>
+                  <div style={styles.cardFooter}>
+                    {g.status === "invited" ? (
+                      <>
+                        <button
+                          style={styles.acceptBtn}
+                          onClick={() => handleAcceptInvite(g.id)}
+                        >
+                          Accept
+                        </button>
+
+                        <button
+                          style={styles.declineBtn}
+                          onClick={() => handleDeclineInvite(g.id)}
+                        >
+                          Decline
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          style={styles.addBtn}
+                          onClick={() => {
+                            setSelectedGroupId(g.id);
+                            setShowAddTransaction(true);
+                          }}
+                        >
+                          Add Transaction
+                        </button>
+                        {g.ownerId === currentUser?.user_id ? (
+                          <button
+                            style={styles.deleteBtn}
+                            onClick={() => handleDeleteGroup(g.id)}
+                            title="Delete group"
+                          >
+                            <LuTrash2 size={16} />
+                          </button>
+                        ) : null}
+                      </>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -181,8 +396,86 @@ export default function GroupsPage() {
           )}
           {showAddTransaction && (
             <AddTransactionModal
+              workspaceType="group"
               onClose={() => setShowAddTransaction(false)}
-              onSave={handleAddTransaction}
+              onSave={async (payload) => {
+                const user = getCurrentUser();
+                if (!user?.user_id) {
+                  throw new Error("Log in to add transactions.");
+                }
+
+                const { workspace_type: _wt, ...rest } = payload;
+                const response = await fetch(
+                  `${getApiBase()}/api/transactions`,
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      user_id: user.user_id,
+                      category: rest.category,
+                      type: rest.type,
+                      amount: rest.amount,
+                      description: rest.description,
+                      date: rest.date,
+                      workspace_type: "group",
+                      workspace_id: selectedGroupId,
+                    }),
+                  },
+                );
+
+                let body = {};
+                try {
+                  body = await response.json();
+                } catch {
+                  body = {};
+                }
+
+                if (!response.ok) {
+                  throw new Error(
+                    body.message || "Could not save transaction.",
+                  );
+                }
+
+                handleAddTransaction(body, rest.amount);
+              }}
+            />
+          )}
+          {showCreateGroup && (
+            <CreateGroup
+              onClose={() => setShowCreateGroup(false)}
+              onSave={async (payload) => {
+                const user = getCurrentUser();
+                if (!user?.user_id) {
+                  throw new Error("Log in to create groups.");
+                }
+
+                const response = await fetch(
+                  `${getApiBase()}/api/workspaces/groups`,
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      user_id: user.user_id,
+                      name: payload.workspace_name,
+                      description: payload.description,
+                      members: payload.members,
+                    }),
+                  },
+                );
+
+                let body = {};
+                try {
+                  body = await response.json();
+                } catch {
+                  body = {};
+                }
+
+                if (!response.ok) {
+                  throw new Error(body.message || "Could not create group.");
+                }
+
+                await loadGroups();
+              }}
             />
           )}
         </div>
@@ -199,7 +492,7 @@ const styles = {
     fontFamily: "'Segoe UI', sans-serif",
   },
 
-  main: { flex: 1 },
+  main: { flex: 1, marginLeft: 220 },
   content: { padding: 32 },
 
   title: {
@@ -232,6 +525,8 @@ const styles = {
   },
 
   card: {
+    display: "flex",
+    flexDirection: "column",
     background: "#fff",
     borderRadius: 16,
     padding: 20,
@@ -320,8 +615,15 @@ const styles = {
     gap: 6,
   },
 
-  addBtn: {
+  cardFooter: {
+    marginTop: "auto",
+    display: "flex",
+    gap: 10,
     width: "100%",
+  },
+
+  addBtn: {
+    flex: 1,
     background: "#89d0a4",
     color: "#fff",
     border: "none",
@@ -329,6 +631,17 @@ const styles = {
     borderRadius: 10,
     cursor: "pointer",
     fontWeight: 600,
+  },
+  deleteBtn: {
+    width: 44,
+    border: "none",
+    borderRadius: 10,
+    background: "#c4c9d2",
+    color: "#fff",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   pageHeaderRow: {
@@ -384,5 +697,57 @@ const styles = {
     border: "1px solid #ddd",
     outline: "none",
     background: "#fff",
+  },
+
+  acceptBtn: {
+    flex: 1,
+    background: "#89d0a4",
+    color: "#fff",
+    border: "none",
+    padding: "12px",
+    borderRadius: 10,
+    cursor: "pointer",
+    fontWeight: 600,
+  },
+
+  declineBtn: {
+    flex: 1,
+    background: "#c5ccc8",
+    color: "#fff",
+    border: "none",
+    padding: "12px",
+    borderRadius: 10,
+    cursor: "pointer",
+    fontWeight: 600,
+  },
+  bannerError: {
+    color: "#b45309",
+    background: "#fffbeb",
+    border: "1px solid #fde68a",
+    padding: "10px 14px",
+    borderRadius: 8,
+    marginBottom: 16,
+    fontSize: 14,
+  },
+  emptyStateContainer: {
+    width: "100%",
+    maxWidth: 1200,
+    margin: "0 auto",
+    marginBottom: 24,
+  },
+  emptyState: {
+    background: "#fff",
+    borderRadius: 16,
+    padding: 24,
+    border: "1px solid #e5e7eb",
+    color: "#6b7280",
+    fontSize: 14,
+    textAlign: "center",
+  },
+
+  emptyStateText: {
+    marginTop: 8,
+    color: "#4b5563",
+    fontSize: 14,
   },
 };
