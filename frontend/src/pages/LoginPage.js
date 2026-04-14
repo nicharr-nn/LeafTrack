@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
+import { getApiBase } from "../config/api";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -28,19 +29,16 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(
-        `${process.env.REACT_APP_API_URL || "http://localhost:4000"}/api/users/login`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            username: form.username.trim(),
-            password: form.password.trim(),
-          }),
-        }
-      );
+      const response = await fetch(`${getApiBase()}/api/users/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: form.username.trim(),
+          password: form.password.trim(),
+        }),
+      });
 
       let payload = {};
       try {
@@ -57,7 +55,9 @@ export default function LoginPage() {
         sessionStorage.setItem("leaftrack_user", JSON.stringify(payload.user));
       }
 
-      navigate("/dashboard");
+      const redirectPath =
+        payload.user?.role === "admin" ? "/admin" : "/dashboard";
+      navigate(redirectPath);
     } catch (error) {
       setErrorMessage(error.message || "Login failed.");
     } finally {
@@ -153,11 +153,6 @@ const styles = {
     fontSize: 14,
     color: "#6b7280",
     marginBottom: 10,
-  },
-
-  row: {
-    display: "flex",
-    gap: 10,
   },
 
   inputContainer: {
