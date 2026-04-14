@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LuSearch, LuTrash2 } from "react-icons/lu";
 import { FiFeather, FiLogOut } from "react-icons/fi";
-import { getApiBase } from "../config/api";
+import { getApiBase, getCurrentUser } from "../config/api";
 
 function formatDisplayDate(dateStr) {
   const date = new Date(dateStr);
@@ -15,6 +15,7 @@ export default function AdminPage() {
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [listError, setListError] = useState("");
+  const currentUser = getCurrentUser();
 
   const loadUsers = useCallback(async () => {
     setIsLoading(true);
@@ -54,9 +55,24 @@ export default function AdminPage() {
     `${u.name} ${u.username}`.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleDelete = (id) => {
-    if (!window.confirm("Delete this user?")) return;
-    setUsers((prev) => prev.filter((u) => u.user_id !== id));
+  const handleDelete = async (userId) => {
+    if (!window.confirm("Delete this user? This action cannot be undone.")) return;
+
+    try {
+      const response = await fetch(`${getApiBase()}/api/users/${userId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to delete user");
+      }
+
+      // Remove from local state
+      setUsers((prev) => prev.filter((u) => u.user_id !== userId));
+    } catch (error) {
+      alert(`Error deleting user: ${error.message}`);
+    }
   };
 
   return (
@@ -148,12 +164,16 @@ export default function AdminPage() {
                       </td>
 
                       <td style={styles.td}>
-                        <button
-                          style={styles.deleteBtn}
-                          onClick={() => handleDelete(u.user_id)}
-                        >
-                          <LuTrash2 size={16} />
-                        </button>
+                        {currentUser && currentUser.role === 'admin' && u.role !== 'admin' ? (
+                          <button
+                            style={styles.deleteBtn}
+                            onClick={() => handleDelete(u.user_id)}
+                          >
+                            <LuTrash2 size={16} />
+                          </button>
+                        ) : (
+                          <span style={styles.noAction}>-</span>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -298,6 +318,11 @@ const styles = {
     background: "none",
     cursor: "pointer",
     color: "#ef4444",
+  },
+
+  noAction: {
+    color: "#9ca3af",
+    fontSize: 14,
   },
 
   emptyRow: {
