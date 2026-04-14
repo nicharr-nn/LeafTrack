@@ -16,9 +16,21 @@ CREATE TABLE IF NOT EXISTS categories (
 CREATE TABLE IF NOT EXISTS workspaces (
   workspace_id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
+  description TEXT,
   type VARCHAR(10) CHECK (type IN ('personal', 'group')) NOT NULL,
   owner_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS workspace_members (
+  workspace_member_id SERIAL PRIMARY KEY,
+  workspace_id INTEGER NOT NULL REFERENCES workspaces(workspace_id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'accepted', 'declined')),
+  invited_by INTEGER REFERENCES users(user_id) ON DELETE SET NULL,
+  responded_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (workspace_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS default_category_budgets (
@@ -39,6 +51,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   description TEXT,
   date DATE NOT NULL,
   workspace_type VARCHAR(20) NOT NULL DEFAULT 'personal' CHECK (workspace_type IN ('personal', 'group')),
+  workspace_id INTEGER REFERENCES workspaces(workspace_id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

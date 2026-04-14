@@ -1,5 +1,5 @@
-const userRepository = require('../repositories/userRepository');
-const defaultCategoryBudgetRepository = require('../repositories/defaultCategoryBudgetRepository');
+const userRepository = require("../repositories/userRepository");
+const defaultCategoryBudgetRepository = require("../repositories/defaultCategoryBudgetRepository");
 
 async function listUsers() {
   return userRepository.getAllUsers();
@@ -8,7 +8,7 @@ async function registerUser(payload) {
   const { name, username, password } = payload;
 
   if (!name || !username || !password) {
-    const error = new Error('name, username, and password are required');
+    const error = new Error("name, username, and password are required");
     error.statusCode = 400;
     throw error;
   }
@@ -16,11 +16,15 @@ async function registerUser(payload) {
   const sanitizedUser = {
     name: name.trim(),
     username: username.trim(),
-    password: password.trim()
+    password: password.trim(),
   };
 
-  if (!sanitizedUser.name || !sanitizedUser.username || !sanitizedUser.password) {
-    const error = new Error('name, username, and password are required');
+  if (
+    !sanitizedUser.name ||
+    !sanitizedUser.username ||
+    !sanitizedUser.password
+  ) {
+    const error = new Error("name, username, and password are required");
     error.statusCode = 400;
     throw error;
   }
@@ -28,8 +32,47 @@ async function registerUser(payload) {
   try {
     return await userRepository.createUser(sanitizedUser);
   } catch (error) {
-    if (error.code === '23505') {
-      const conflictError = new Error('Username already exists');
+    if (error.code === "23505") {
+      const conflictError = new Error("Username already exists");
+      conflictError.statusCode = 409;
+      throw conflictError;
+    }
+
+    throw error;
+  }
+}
+
+async function createAdminUser(payload) {
+  const { name, username, password } = payload;
+
+  if (!name || !username || !password) {
+    const error = new Error("name, username, and password are required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const sanitizedUser = {
+    name: name.trim(),
+    username: username.trim(),
+    password: password.trim(),
+    role: "admin",
+  };
+
+  if (
+    !sanitizedUser.name ||
+    !sanitizedUser.username ||
+    !sanitizedUser.password
+  ) {
+    const error = new Error("name, username, and password are required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  try {
+    return await userRepository.createUser(sanitizedUser);
+  } catch (error) {
+    if (error.code === "23505") {
+      const conflictError = new Error("Username already exists");
       conflictError.statusCode = 409;
       throw conflictError;
     }
@@ -42,7 +85,7 @@ async function loginUser(payload) {
   const { username, password } = payload;
 
   if (!username || !password) {
-    const error = new Error('username and password are required');
+    const error = new Error("username and password are required");
     error.statusCode = 400;
     throw error;
   }
@@ -51,7 +94,7 @@ async function loginUser(payload) {
   const trimmedPassword = password.trim();
 
   if (!trimmedUsername || !trimmedPassword) {
-    const error = new Error('username and password are required');
+    const error = new Error("username and password are required");
     error.statusCode = 400;
     throw error;
   }
@@ -59,7 +102,7 @@ async function loginUser(payload) {
   const user = await userRepository.findUserByUsername(trimmedUsername);
 
   if (!user || user.password !== trimmedPassword) {
-    const error = new Error('Invalid username or password');
+    const error = new Error("Invalid username or password");
     error.statusCode = 401;
     throw error;
   }
@@ -72,7 +115,7 @@ async function loginUser(payload) {
 async function getUserById(userId) {
   const user = await userRepository.findUserById(userId);
   if (!user) {
-    const error = new Error('User not found');
+    const error = new Error("User not found");
     error.statusCode = 404;
     throw error;
   }
@@ -87,7 +130,7 @@ async function updateUser(userId, payload) {
   if (name !== undefined) {
     updateData.name = name.trim();
     if (!updateData.name) {
-      const error = new Error('Name cannot be empty');
+      const error = new Error("Name cannot be empty");
       error.statusCode = 400;
       throw error;
     }
@@ -96,7 +139,7 @@ async function updateUser(userId, payload) {
   if (username !== undefined) {
     updateData.username = username.trim();
     if (!updateData.username) {
-      const error = new Error('Username cannot be empty');
+      const error = new Error("Username cannot be empty");
       error.statusCode = 400;
       throw error;
     }
@@ -105,7 +148,7 @@ async function updateUser(userId, payload) {
   if (password !== undefined) {
     updateData.password = password.trim();
     if (!updateData.password) {
-      const error = new Error('Password cannot be empty');
+      const error = new Error("Password cannot be empty");
       error.statusCode = 400;
       throw error;
     }
@@ -114,8 +157,8 @@ async function updateUser(userId, payload) {
   try {
     return await userRepository.updateUser(userId, updateData);
   } catch (error) {
-    if (error.code === '23505') {
-      const conflictError = new Error('Username already exists');
+    if (error.code === "23505") {
+      const conflictError = new Error("Username already exists");
       conflictError.statusCode = 409;
       throw conflictError;
     }
@@ -126,14 +169,16 @@ async function updateUser(userId, payload) {
 async function getUserDefaultCategoryBudgets(userId) {
   await getUserById(userId);
   const rows =
-    await defaultCategoryBudgetRepository.getUserDefaultCategoryBudgetRows(userId);
+    await defaultCategoryBudgetRepository.getUserDefaultCategoryBudgetRows(
+      userId,
+    );
   return rows.map((r) => ({
     category_id: r.category_id,
     category_name: r.category_name,
     default_amount:
       r.default_amount === null || r.default_amount === undefined
         ? null
-        : Number(r.default_amount)
+        : Number(r.default_amount),
   }));
 }
 
@@ -146,12 +191,12 @@ async function saveUserDefaultCategoryBudgets(userId, payload) {
   for (const b of rawList) {
     const cid = Number(b.category_id);
     if (!Number.isFinite(cid)) {
-      const err = new Error('Invalid expense category in budget list');
+      const err = new Error("Invalid expense category in budget list");
       err.statusCode = 400;
       throw err;
     }
     if (!allowedIds.has(cid)) {
-      const err = new Error('Invalid expense category in budget list');
+      const err = new Error("Invalid expense category in budget list");
       err.statusCode = 400;
       throw err;
     }
@@ -168,17 +213,38 @@ async function saveUserDefaultCategoryBudgets(userId, payload) {
   }
   await defaultCategoryBudgetRepository.replaceUserDefaultCategoryBudgets(
     userId,
-    normalized
+    normalized,
   );
   return getUserDefaultCategoryBudgets(userId);
+}
+
+async function deleteUser(userId) {
+  // Check if user exists first
+  const user = await userRepository.findUserById(userId);
+  if (!user) {
+    const error = new Error("User not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  // Prevent deleting admin users
+  if (user.role === "admin") {
+    const error = new Error("Cannot delete admin users");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  return await userRepository.deleteUser(userId);
 }
 
 module.exports = {
   listUsers,
   registerUser,
+  createAdminUser,
   loginUser,
   getUserById,
   updateUser,
+  deleteUser,
   getUserDefaultCategoryBudgets,
-  saveUserDefaultCategoryBudgets
+  saveUserDefaultCategoryBudgets,
 };

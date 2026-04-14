@@ -1,20 +1,21 @@
-const express = require('express');
-const userController = require('../controllers/userController');
+const express = require("express");
+const userController = require("../controllers/userController");
 
 const router = express.Router();
 
-router.post('/register', userController.registerUser);
-router.post('/login', userController.loginUser);
-router.get('/', userController.getUsers);
+router.post("/register", userController.registerUser);
+router.post("/login", userController.loginUser);
+router.get("/", userController.getUsers);
 router.get(
-  '/:id/default-category-budgets',
-  userController.getUserDefaultCategoryBudgets
+  "/:id/default-category-budgets",
+  userController.getUserDefaultCategoryBudgets,
 );
 router.put(
-  '/:id/default-category-budgets',
-  userController.saveUserDefaultCategoryBudgets
+  "/:id/default-category-budgets",
+  userController.saveUserDefaultCategoryBudgets,
 );
-router.get('/:id', userController.getUser);
-router.put('/:id', userController.updateUser);
+router.get("/:id", userController.getUser);
+router.put("/:id", userController.updateUser);
+router.delete("/:id", userController.deleteUser);
 
 module.exports = router;
