@@ -5,9 +5,11 @@ import AddMemberModal from "../components/AddMember";
 import AddTransactionModal from "../components/AddTransaction";
 import CreateGroup from "../components/CreateGroup";
 import { getApiBase, getCurrentUser } from "../config/api";
+import { useNavigate } from "react-router-dom";
 
 export default function GroupsPage() {
   const currentUser = getCurrentUser();
+  const navigate = useNavigate();
   const [groups, setGroups] = useState([]);
   const [listError, setListError] = useState("");
   const [hasLoadedGroups, setHasLoadedGroups] = useState(false);
@@ -363,15 +365,26 @@ export default function GroupsPage() {
                       </>
                     ) : (
                       <>
-                        <button
-                          style={styles.addBtn}
-                          onClick={() => {
-                            setSelectedGroupId(g.id);
-                            setShowAddTransaction(true);
-                          }}
-                        >
-                          Add Transaction
-                        </button>
+                        <div style={styles.actionRow}>
+                          <button
+                            style={styles.viewBtn}
+                            onClick={() =>
+                              navigate(`/groups/${g.id}/transactions`)
+                            }
+                          >
+                            View Details
+                          </button>
+
+                          <button
+                            style={styles.addBtn}
+                            onClick={() => {
+                              setSelectedGroupId(g.id);
+                              setShowAddTransaction(true);
+                            }}
+                          >
+                            Add Transaction
+                          </button>
+                        </div>
                         {g.ownerId === currentUser?.user_id ? (
                           <button
                             style={styles.deleteBtn}
@@ -436,7 +449,7 @@ export default function GroupsPage() {
                   );
                 }
 
-                handleAddTransaction(body, rest.amount);
+                handleAddTransaction(body, rest.amount, selectedGroupId);
               }}
             />
           )}
@@ -494,29 +507,6 @@ const styles = {
 
   main: { flex: 1, marginLeft: 220 },
   content: { padding: 32 },
-
-  title: {
-    fontSize: 28,
-    fontWeight: 700,
-    marginBottom: 20,
-  },
-
-  input: {
-    flex: 1,
-    padding: "10px 14px",
-    borderRadius: 8,
-    border: "1px solid #ddd",
-  },
-
-  createBtn: {
-    border: "none",
-    borderRadius: 8,
-    padding: "10px 16px",
-    background: "#89d0a4",
-    color: "#fff",
-    fontWeight: 600,
-    cursor: "pointer",
-  },
 
   grid: {
     display: "grid",
@@ -657,12 +647,6 @@ const styles = {
     margin: 0,
   },
 
-  pageSubtitle: {
-    fontSize: 14,
-    color: "#6b7280",
-    marginTop: 4,
-  },
-
   headerBtn: {
     background: "#89d0a4",
     color: "#fff",
@@ -749,5 +733,22 @@ const styles = {
     marginTop: 8,
     color: "#4b5563",
     fontSize: 14,
+  },
+
+  actionRow: {
+    display: "flex",
+    gap: 10,
+    flex: 1,
+  },
+
+  viewBtn: {
+    flex: 1,
+    background: "#89d0a4",
+    color: "#ffffff",
+    border: "none",
+    padding: "12px",
+    borderRadius: 10,
+    cursor: "pointer",
+    fontWeight: 600,
   },
 };
