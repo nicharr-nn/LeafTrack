@@ -12,9 +12,14 @@ function formatDisplayDate(dateStr) {
 
 function mapTransaction(row) {
   const amt = Number(row.amount);
+  const parsedDate = new Date(row.date);
+  const timestamp = Number.isNaN(parsedDate.getTime())
+    ? 0
+    : parsedDate.getTime();
   return {
     id: row.transaction_id,
     date: formatDisplayDate(row.date),
+    dateTimestamp: timestamp,
     description: row.description || "",
     category: row.category || "Other",
     type: row.type,
@@ -46,7 +51,11 @@ export default function Transactions() {
   const [typeFilter, setTypeFilter] = useState("All Types");
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
   const [showModal, setShowModal] = useState(false);
-  const [sortOrder, setSortOrder] = useState("desc"); // desc for latest first
+  const [sortOrder, setSortOrder] = useState("desc");
+
+  const personalTransactions = transactions.filter(
+    (t) => t.workspace_type === "personal",
+  );
 
   const loadTransactions = useCallback(async () => {
     const user = getCurrentUser();
@@ -83,7 +92,7 @@ export default function Transactions() {
     loadTransactions();
   }, [loadTransactions]);
 
-  const filtered = transactions
+  const filtered = personalTransactions
     .filter((t) => {
       const matchSearch = t.description
         .toLowerCase()
@@ -95,17 +104,17 @@ export default function Transactions() {
       return matchSearch && matchType && matchCat;
     })
     .sort((a, b) => {
-      const dateA = new Date(a.date);
-      const dateB = new Date(b.date);
+      const dateA = a.dateTimestamp || 0;
+      const dateB = b.dateTimestamp || 0;
       return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
     });
 
-  const totalIncome = transactions
+  const totalIncome = personalTransactions
     .filter((t) => t.type === "income")
     .reduce((sum, t) => sum + t.amount, 0);
 
   const totalExpenses = Math.abs(
-    transactions
+    personalTransactions
       .filter((t) => t.type === "expense")
       .reduce((sum, t) => sum + t.amount, 0),
   );
@@ -158,7 +167,9 @@ export default function Transactions() {
           <div style={styles.statsRow}>
             <div style={styles.statCard}>
               <span style={styles.statLabel}>Total Transactions</span>
-              <span style={styles.statValueDefault}>{transactions.length}</span>
+              <span style={styles.statValueDefault}>
+                {personalTransactions.length}
+              </span>
             </div>
 
             <div
@@ -260,7 +271,6 @@ export default function Transactions() {
                     "Description",
                     "Category",
                     "Type",
-                    "Workspace",
                     "Amount",
                     "Actions",
                   ].map((h) => (
@@ -274,7 +284,7 @@ export default function Transactions() {
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={styles.emptyRow}>
+                    <td colSpan={6} style={styles.emptyRow}>
                       No transactions found.
                     </td>
                   </tr>
@@ -301,19 +311,6 @@ export default function Transactions() {
                           }}
                         >
                           {t.type}
-                        </span>
-                      </td>
-
-                      <td style={styles.td}>
-                        <span
-                          style={{
-                            ...styles.workspaceBadge,
-                            ...(t.workspace_type === "group"
-                              ? styles.workspaceGroup
-                              : styles.workspacePersonal),
-                          }}
-                        >
-                          {t.workspace_type === "group" ? "Group" : "Personal"}
                         </span>
                       </td>
 
@@ -410,7 +407,6 @@ const styles = {
     alignItems: "center",
   },
   pageTitle: { fontSize: 28, fontWeight: 700, margin: 0 },
-  pageSubtitle: { fontSize: 14, color: "#6b7280", marginTop: 4 },
 
   statsRow: {
     display: "grid",
@@ -459,7 +455,6 @@ const styles = {
   },
 
   filterRight: { display: "flex", alignItems: "center", gap: 10 },
-  filterIcon: { color: "#6b7280" },
 
   sortBtn: {
     height: 36,
@@ -537,23 +532,6 @@ const styles = {
     borderRadius: 20,
     padding: "3px 10px",
     fontSize: 12,
-  },
-
-  workspaceBadge: {
-    borderRadius: 20,
-    padding: "3px 10px",
-    fontSize: 12,
-    fontWeight: 500,
-  },
-
-  workspacePersonal: {
-    background: "#e4feee",
-    color: "#62b181",
-  },
-
-  workspaceGroup: {
-    background: "#fef3c7",
-    color: "#b45309",
   },
 
   bannerError: {
