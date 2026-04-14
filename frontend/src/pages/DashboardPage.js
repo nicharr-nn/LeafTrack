@@ -16,6 +16,7 @@ function mapTransaction(row) {
     category: row.category || "Other",
     date: formatDisplayDate(row.date),
     amount: amt,
+    workspace_type: row.workspace_type || "personal",
   };
 }
 
@@ -24,6 +25,10 @@ export default function DashboardPage() {
   const [budgets, setBudgets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const personalTransactions = transactions.filter(
+    (t) => t.workspace_type === "personal"
+  );
 
   useEffect(() => {
     const loadData = async () => {
@@ -83,24 +88,24 @@ export default function DashboardPage() {
     loadData();
   }, []);
 
-  const totalIncome = transactions
+  const totalIncome = personalTransactions
     .filter((t) => t.amount > 0)
     .reduce((sum, t) => sum + t.amount, 0);
 
   const totalExpense = Math.abs(
-    transactions
+    personalTransactions
       .filter((t) => t.amount < 0)
-      .reduce((sum, t) => sum + t.amount, 0),
+      .reduce((sum, t) => sum + t.amount, 0)
   );
 
   const balance = totalIncome - totalExpense;
 
-  const recent = [...transactions]
+  const recent = [...personalTransactions]
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 5);
 
   const budgetsWithSpent = budgets.map((budget) => {
-    const spent = transactions
+    const spent = personalTransactions
       .filter((t) => t.category === budget.category_name && t.amount < 0)
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
@@ -136,12 +141,12 @@ export default function DashboardPage() {
           ) : (
             <>
               <div style={styles.statsRow}>
-                <div style={styles.statCard}>
+                <div style={styles.balanceCard}>
                   <div style={styles.cardHeader}>
                     <span>Total Balance</span>
                     <LuWallet />
                   </div>
-                  <span style={styles.statValue}>
+                  <span style={{ ...styles.statValue, color: "#62b181" }}>
                     {balance.toLocaleString()}
                   </span>
                 </div>
@@ -290,36 +295,10 @@ const styles = {
     margin: 0,
   },
 
-  pageSubtitle: {
-    fontSize: 14,
-    color: "#6b7280",
-    marginTop: 4,
-  },
-
   balanceCard: {
     background: "#e4feee",
     borderRadius: 12,
     border: "1px solid #9ce3b7",
-    padding: "20px 24px",
-    display: "flex",
-    flexDirection: "column",
-    gap: 8,
-  },
-
-  incomeCard: {
-    background: "#eef9ff",
-    borderRadius: 12,
-    border: "1px solid #A9DEF9",
-    padding: "20px 24px",
-    display: "flex",
-    flexDirection: "column",
-    gap: 8,
-  },
-
-  expenseCard: {
-    background: "#ffeaf4",
-    borderRadius: 12,
-    border: "1px solid #f8accf",
     padding: "20px 24px",
     display: "flex",
     flexDirection: "column",
