@@ -3,7 +3,7 @@ import Sidebar from "../components/Sidebar";
 import AddTransaction from "../components/AddTransaction";
 import { getApiBase, getCurrentUser } from "../config/api";
 import { useParams } from "react-router-dom";
-import { LuTrash2 } from "react-icons/lu";
+import { LuTrash2, LuSearch, LuArrowUp, LuArrowDown } from "react-icons/lu";
 
 function formatDisplayDate(dateStr) {
   const date = new Date(dateStr);
@@ -26,15 +26,31 @@ function mapTransaction(row) {
   };
 }
 
+const CATEGORIES = [
+  "All Categories",
+  "Salary",
+  "Bonus",
+  "Investment",
+  "Gift",
+  "Rent",
+  "Food",
+  "Utilities",
+  "Entertainment",
+  "Health",
+  "Other",
+];
+
+const TYPES = ["All Types", "income", "expense"];
+
 export default function GroupTransactions() {
   const { groupId } = useParams();
   const [transactions, setTransactions] = useState([]);
   const [listError, setListError] = useState("");
-  const [search] = useState("");
-  const [typeFilter] = useState("All Types");
-  const [categoryFilter] = useState("All Categories");
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("All Types");
+  const [categoryFilter, setCategoryFilter] = useState("All Categories");
+  const [sortOrder, setSortOrder] = useState("desc");
   const [showModal, setShowModal] = useState(false);
-  const [sortOrder] = useState("desc");
 
   const user = getCurrentUser();
 
@@ -181,6 +197,57 @@ export default function GroupTransactions() {
               <span style={{ ...styles.statValue, color: "#ee8ebb" }}>
                 {totalExpenses.toLocaleString()}
               </span>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div style={styles.filterBar}>
+            <div style={styles.searchWrap}>
+              <span style={styles.searchIcon}>
+                <LuSearch size={14} />
+              </span>
+
+              <input
+                style={styles.searchInput}
+                placeholder="Search transactions..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <button
+                style={styles.sortBtn}
+                onClick={() =>
+                  setSortOrder(sortOrder === "desc" ? "asc" : "desc")
+                }
+              >
+                {sortOrder === "desc" ? (
+                  <LuArrowDown size={16} />
+                ) : (
+                  <LuArrowUp size={16} />
+                )}
+              </button>
+
+              <select
+                style={styles.select}
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+              >
+                {TYPES.map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+
+              <select
+                style={styles.select}
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -439,13 +506,6 @@ const styles = {
   tr: { borderBottom: "1px solid #f9fafb" },
   td: { padding: "14px 20px", fontSize: 14, textAlign: "center" },
 
-  descCell: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-
   categoryBadge: {
     background: "#f3f4f6",
     borderRadius: 20,
@@ -457,23 +517,6 @@ const styles = {
     borderRadius: 20,
     padding: "3px 10px",
     fontSize: 12,
-  },
-
-  workspaceBadge: {
-    borderRadius: 20,
-    padding: "3px 10px",
-    fontSize: 12,
-    fontWeight: 500,
-  },
-
-  workspacePersonal: {
-    background: "#e4feee",
-    color: "#62b181",
-  },
-
-  workspaceGroup: {
-    background: "#fef3c7",
-    color: "#b45309",
   },
 
   bannerError: {
