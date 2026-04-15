@@ -2,7 +2,7 @@
 
 ## Project Description
 
-Leaf Track is an expense and income tracker designed to help personal and groups manage financial activity. The application enables users to record income and expenses, categorize transactions, set budgets, monitor remaining balance, and share a workspace with others.
+Leaf Track is an expense and income tracker designed to help personal and groups manage financial activity. The application enables users to record income and expenses, categorize transactions, set monthly budgets, monitor remaining balance, and share a workspace with others.
 
 ## System Architecture Overview
 
@@ -48,7 +48,6 @@ Leaf Track is built using a layered architecture style:
 - Frontend: **React.js**
 - Backend: **Node.js** + **Express**
 - Database: **PostgreSQL**
-- Architecture: **Layered architecture style**
 
 ## Installation & Setup Instructions
 
@@ -113,3 +112,13 @@ npm start
 The React application will run by default on `http://localhost:3000`.
 
 ## Screenshots
+### User
+![Login screenshot](screenshot/img_login.png)
+![Dashboard screenshot](screenshot/img_dashboard.png)
+![Transactions screenshot](screenshot/img_transactions.png)
+![Add Transaction screenshot](screenshot/img_add_transaction.png)
+![Group screenshot](screenshot/img_group.png)
+![Settings screenshot](screenshot/img_settings.png)
+
+### Admin
+![Admin screenshot](screenshot/img_admin.png)
