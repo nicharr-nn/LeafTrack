@@ -7,14 +7,41 @@ function formatDisplayDate(dateStr) {
   const date = new Date(dateStr);
   return date.toLocaleDateString("en-GB");
 }
+function getYearMonth(dateValue) {
+  if (typeof dateValue === "string") {
+    const match = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      return {
+        year: Number(match[1]),
+        month: Number(match[2]) - 1,
+      };
+    }
+  }
+
+  const parsed = new Date(dateValue);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return {
+    year: parsed.getFullYear(),
+    month: parsed.getMonth(),
+  };
+}
 
 function mapTransaction(row) {
   const amt = Number(row.amount);
+  const parsedDate = new Date(row.date);
+  const timestamp = Number.isNaN(parsedDate.getTime())
+    ? 0
+    : parsedDate.getTime();
   return {
     id: row.transaction_id,
     title: row.description || "Transaction",
     category: row.category || "Other",
     date: formatDisplayDate(row.date),
+    rawDate: row.date,
+    dateTimestamp: timestamp,
     amount: amt,
     workspace_type: row.workspace_type || "personal",
   };
@@ -29,6 +56,19 @@ export default function DashboardPage() {
   const personalTransactions = transactions.filter(
     (t) => t.workspace_type === "personal"
   );
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth();
+  const currentMonthTransactions = personalTransactions.filter((t) => {
+    const txYearMonth = getYearMonth(t.rawDate);
+    if (!txYearMonth) {
+      return false;
+    }
+
+    return (
+      txYearMonth.year === currentYear && txYearMonth.month === currentMonth
+    );
+  });
 
   useEffect(() => {
     const loadData = async () => {
@@ -101,11 +141,11 @@ export default function DashboardPage() {
   const balance = totalIncome - totalExpense;
 
   const recent = [...personalTransactions]
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .sort((a, b) => b.dateTimestamp - a.dateTimestamp)
     .slice(0, 5);
 
   const budgetsWithSpent = budgets.map((budget) => {
-    const spent = personalTransactions
+    const spent = currentMonthTransactions
       .filter((t) => t.category === budget.category_name && t.amount < 0)
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
@@ -220,7 +260,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div style={styles.panel}>
-                  <h3>Budget Overview</h3>
+                  <h3>Monthly Budget Overview</h3>
 
                   {sortedBudgets.length === 0 ? (
                     <p>No budgets set.</p>
