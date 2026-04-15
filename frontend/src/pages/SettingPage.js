@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import { getApiBase, getCurrentUser } from "../config/api";
+import { useNavigate } from "react-router-dom";
 
 function mapBudgetsFromApi(list) {
   const mapped = list.map((b) => ({
@@ -20,6 +21,7 @@ function mapBudgetsFromApi(list) {
 }
 
 export default function SettingsPage() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     name: "",
     username: "",
@@ -31,6 +33,7 @@ export default function SettingsPage() {
   const [budgets, setBudgets] = useState([]);
   const [budgetError, setBudgetError] = useState("");
   const [budgetSaving, setBudgetSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const loadBudgetRows = async (userId) => {
@@ -111,6 +114,47 @@ export default function SettingsPage() {
         b.category_id === category_id ? { ...b, budgetInput: value } : b,
       ),
     );
+  };
+
+  const handleDeleteAccount = async () => {
+    const user = getCurrentUser();
+    if (!user?.user_id) {
+      alert("Please log in to delete your account.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Deactivate your account? This action cannot be undone.",
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setError("");
+
+    try {
+      const res = await fetch(`${getApiBase()}/api/users/${user.user_id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        let msg = "Failed to deactivate account.";
+        try {
+          const body = await res.json();
+          msg = body.message || msg;
+        } catch {
+          // ignore
+        }
+        throw new Error(msg);
+      }
+
+      sessionStorage.removeItem("leaftrack_user");
+      alert("Your account has been deactivated.");
+      navigate("/login");
+    } catch (e) {
+      setError(e.message || "Failed to deactivate account.");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleSaveBudgets = async () => {
@@ -289,6 +333,17 @@ export default function SettingsPage() {
 
                 <div style={styles.actions}>
                   <button
+                    style={{
+                      ...styles.deleteBtn,
+                      marginRight: 12,
+                      opacity: saving || deleting ? 0.6 : 1,
+                    }}
+                    onClick={handleDeleteAccount}
+                    disabled={saving || deleting}
+                  >
+                    {deleting ? "Deleting..." : "Delete Account"}
+                  </button>
+                  <button
                     style={{ ...styles.saveBtn, opacity: saving ? 0.6 : 1 }}
                     onClick={handleSave}
                     disabled={saving}
@@ -299,7 +354,7 @@ export default function SettingsPage() {
               </div>
 
               <div style={styles.card}>
-                <h2 style={styles.sectionTitle}>Expense budgets</h2>
+                <h2 style={styles.sectionTitle}>Monthly Expense Budgets</h2>
                 {budgetError ? (
                   <p style={styles.error}>{budgetError}</p>
                 ) : (
@@ -428,6 +483,16 @@ const styles = {
 
   saveBtn: {
     background: "#89d0a4",
+    color: "#fff",
+    border: "none",
+    padding: "10px 18px",
+    borderRadius: 8,
+    cursor: "pointer",
+    fontWeight: 600,
+  },
+
+  deleteBtn: {
+    background: "#e88484",
     color: "#fff",
     border: "none",
     padding: "10px 18px",
